@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroQuiz – IO Challenge</title>
+  <style>
+    :root{
+      --good:#22c55e;
+      --bad:#ef4444;
+      --accent:#38bdf8;
+      --glass:rgba(255,255,255,0.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family: 'Poppins', sans-serif;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:radial-gradient(circle at top,#020617,#000);
+      color:#e5e7eb;
+    }
+
+    .app{
+      width:100%;
+      max-width:720px;
+      background:var(--glass);
+      backdrop-filter:blur(16px);
+      border-radius:24px;
+      padding:35px;
+      box-shadow:0 30px 60px rgba(0,0,0,.6);
+      animation:zoomIn .7s ease;
+    }
+
+    @keyframes zoomIn{
+      from{transform:scale(.9);opacity:0}
+      to{transform:scale(1);opacity:1}
+    }
+
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:25px;
+    }
+
+    header h1{
+      font-size:1.6rem;
+      background:linear-gradient(90deg,var(--accent),#a78bfa);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .progress-ring{
+      width:54px;height:54px;
+      border-radius:50%;
+      background:conic-gradient(var(--accent) 0deg,#1e293b 0deg);
+      display:grid;place-items:center;
+      font-size:.8rem;
+    }
+
+    .question{
+      font-size:1.2rem;
+      margin:25px 0;
+      line-height:1.5;
+    }
+
+    .options{
+      display:grid;
+      gap:16px;
+    }
+
+    .option{
+      padding:16px 18px;
+      border-radius:16px;
+      background:#020617;
+      cursor:pointer;
+      border:2px solid transparent;
+      transition:.25s;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .option:hover{border-color:var(--accent)}
+
+    .option.correct{
+      background:linear-gradient(90deg,#16a34a,#22c55e);
+      animation:pulse .4s ease;
+    }
+
+    .option.wrong{
+      background:linear-gradient(90deg,#b91c1c,#ef4444);
+      animation:shake .4s ease;
+    }
+
+    @keyframes shake{
+      0%,100%{transform:translateX(0)}
+      25%{transform:translateX(-6px)}
+      75%{transform:translateX(6px)}
+    }
+
+    @keyframes pulse{
+      0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}
+      100%{box-shadow:0 0 0 18px rgba(34,197,94,0)}
+    }
+
+    .hud{
+      margin-top:28px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:.95rem;
+    }
+
+    .streak{color:#fbbf24}
+
+    button{
+      padding:10px 22px;
+      border-radius:20px;
+      border:none;
+      cursor:pointer;
+      background:linear-gradient(90deg,var(--accent),#a78bfa);
+      color:#020617;
+      font-weight:600;
+      display:none;
+    }
+
+    .result{
+      text-align:center;
+      animation:zoomIn .6s ease;
+    }
+
+    .result h2{color:var(--accent);margin-bottom:10px}
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header>
+    <h1>NeuroQuiz – IO Challenge</h1>
+    <div class="progress-ring" id="ring">1%</div>
+  </header>
+
+  <div id="content"></div>
+</div>
+
+<script>
+  const questions=[
+    {q:"Which device converts digital data into visual output?",o:["Keyboard","Monitor","Scanner","Mouse"],a:1},
+    {q:"Which of the following is a primary input device?",o:["Printer","Speaker","Mouse","Plotter"],a:2},
+    {q:"RAM is mainly used for?",o:["Permanent storage","Temporary data","Backup","Input"],a:1},
+    {q:"Which device accepts raw data from the user?",o:["Monitor","CPU","Input device","Output device"],a:2},
+    {q:"Which of these is an output device?",o:["Keyboard","Scanner","Monitor","Joystick"],a:2},
+    {q:"Which memory is non-volatile?",o:["RAM","Cache","ROM","Registers"],a:2},
+    {q:"Which unit performs all calculations?",o:["Input Unit","Control Unit","ALU","Output Unit"],a:2},
+    {q:"Which device is used to point and select objects?",o:["Scanner","Mouse","Printer","Speaker"],a:1},
+    {q:"Which of the following stores data permanently?",o:["RAM","Hard Disk","Cache","CPU"],a:1},
+    {q:"Which device displays information on screen?",o:["Keyboard","Monitor","Mouse","Microphone"],a:1}
+  ];
+
+  let i=0,score=0,streak=0;
+
+  const content=document.getElementById('content');
+  const ring=document.getElementById('ring');
+
+  function render(){
+    const q=questions[i];
+    const percent=Math.round(((i)/questions.length)*100);
+    ring.style.background=`conic-gradient(var(--accent) ${percent*3.6}deg,#1e293b 0deg)`;
+    ring.textContent=percent+"%";
+
+    content.innerHTML=`
+      <div class="question">${i+1}. ${q.q}</div>
+      <div class="options">
+        ${q.o.map((x,idx)=>`<div class='option' onclick='pick(${idx},this)'>${x}</div>`).join('')}
+      </div>
+      <div class="hud">
+        <div>Score: <b>${score}</b></div>
+        <div class="streak">Streak: ${streak}</div>
+        <button id="next" onclick="next()">Next</button>
+      </div>`;
+  }
+
+  function pick(idx,el){
+    const correct=questions[i].a;
+    document.querySelectorAll('.option').forEach(o=>o.style.pointerEvents='none');
+
+    if(idx===correct){
+      el.classList.add('correct');
+      score++; streak++;
+    }else{
+      el.classList.add('wrong');
+      document.querySelectorAll('.option')[correct].classList.add('correct');
+      streak=0;
+    }
+
+    localStorage.setItem('neuro_score',score);
+    document.getElementById('next').style.display='block';
+  }
+
+  function next(){
+    i++;
+    if(i<questions.length) render();
+    else finish();
+  }
+
+  function finish(){
+    localStorage.removeItem('neuro_score');
+    ring.style.background=`conic-gradient(var(--accent) 360deg,#1e293b 0deg)`;
+    ring.textContent="100%";
+    content.innerHTML=`
+      <div class="result">
+        <h2>Challenge Complete 🧠</h2>
+        <p>Final Score: <b>${score}/${questions.length}</b></p>
+        <p>Best Streak: ${streak}</p>
+        <p style="margin-top:10px;color:#94a3b8">Designed as a unique academic mini‑project</p>
+      </div>`;
+  }
+
+  render();
+</script>
+</body>
+</html>
